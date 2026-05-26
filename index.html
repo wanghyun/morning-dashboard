@@ -182,6 +182,7 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Segoe UI',sans-serif;backgr
   .app-action-row{flex-direction:column}
   .naver-link-grid{grid-template-columns:1fr}
 }
+.sync-badge{font-size:.75rem;margin-top:4px;text-align:right;min-height:16px;transition:color .3s}
 </style>
 </head>
 <body>
@@ -196,6 +197,7 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Segoe UI',sans-serif;backgr
   <div class="header-right">
     <div class="hdate" id="hDate"></div>
     <div class="htime" id="hTime"></div>
+    <div class="sync-badge" id="syncBadge">☁️</div>
   </div>
 </div>
 
@@ -393,6 +395,38 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Segoe UI',sans-serif;backgr
 </div>
 
 <script>
+
+// ══ Firebase Realtime DB Sync ═══════════════════════════════
+const FB='https://king-db8985-default-rtdb.firebaseio.com/dashboard';
+let _fbOk=false,_fbQ={};
+function setSyncUI(t,c='#94a3b8'){const e=document.getElementById('syncBadge');if(e){e.textContent=t;e.style.color=c}}
+async function fbInit(){
+  setSyncUI('🔄 동기화 중...');
+  try{
+    const r=await fetch(FB+'.json',{cache:'no-store'});
+    if(!r.ok)throw 0;
+    const d=await r.json();_fbOk=true;
+    if(d){
+      [[KANBAN_KEY,d.kanban],[SCHED_KEY,d.schedules],['ddays',d.ddays],
+       [IDEA_KEY,d.ideas],[PIPE_KEY,d.pipeline],[MEM_KEY,d.appMemory],[SEEN_KEY,d.appSeen]]
+      .forEach(([k,v])=>{if(v!=null)localStorage.setItem(k,JSON.stringify(v))});
+      if(d.memo!=null)localStorage.setItem('memo_'+new Date().toDateString(),d.memo);
+      if(d.ghNote!=null)localStorage.setItem('gh_note_'+todayStr(),d.ghNote);
+    }
+    setSyncUI('☁️ 동기화됨','#16a34a');
+    setTimeout(()=>setSyncUI('☁️'),2000);
+  }catch(e){_fbOk=false;setSyncUI('📵 오프라인','#ea580c')}
+}
+function fbPut(k,v){
+  clearTimeout(_fbQ[k]);
+  _fbQ[k]=setTimeout(async()=>{
+    try{
+      await fetch(`${FB}/${k}.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
+      _fbOk=true;setSyncUI('☁️ 저장됨','#16a34a');setTimeout(()=>setSyncUI('☁️'),1500);
+    }catch(e){_fbOk=false;setSyncUI('📵','#ea580c')}
+  },600);
+}
+// ════════════════════════════════════════════════════════════
 const MEM_KEY='app_memory_v1';
 const SEEN_KEY='app_seen_v2';
 const DAILY_KEY='app_daily_v4'; // v4 = static version
@@ -497,8 +531,8 @@ function pickAppsForToday(overrideSeed=null){
 // ── 기억/seen 관리 ────────────────────────────────────────────
 function getMemory(){return JSON.parse(localStorage.getItem(MEM_KEY)||'[]')}
 function getSeen(){return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}')}
-function saveMemory(list){localStorage.setItem(MEM_KEY,JSON.stringify(list));updateMemoryBadge()}
-function markSeen(recs){const seen=getSeen();recs.forEach(a=>{if(!seen[a.name])seen[a.name]={score:a.score,seenAt:todayStr()}});localStorage.setItem(SEEN_KEY,JSON.stringify(seen))}
+function saveMemory(list){localStorage.setItem(MEM_KEY,JSON.stringify(list));updateMemoryBadge();fbPut("appMemory",list)}
+function markSeen(recs){const seen=getSeen();recs.forEach(a=>{if(!seen[a.name])seen[a.name]={score:a.score,seenAt:todayStr()}});localStorage.setItem(SEEN_KEY,JSON.stringify(seen));fbPut("appSeen",seen)}
 function isMemorized(name){return getMemory().some(m=>m.name===name)}
 function updateMemoryBadge(){const cnt=getMemory().length;const b=document.getElementById('memoryBadge');if(b)b.textContent=cnt+'개'}
 
@@ -605,23 +639,23 @@ const SCHED_KEY='schedules_v2';
 function renderSched(){const all=JSON.parse(localStorage.getItem(SCHED_KEY)||'[]');const el=document.getElementById('schedList');if(!all.length){el.innerHTML='<div class="empty">등록된 일정이 없습니다</div>';return}all.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));const today=todayStr();let html='',lastDate='';all.forEach((it,i)=>{if(it.date!==lastDate){lastDate=it.date;const isToday=it.date===today;html+=`<div class="sched-date-label">${isToday?'📅 오늘 ':''}${toDateLabel(it.date)}</div>`}html+=`<div class="sched-item" style="opacity:${it.date<today?.4:1}"><span class="sched-time">${it.time||'종일'}</span><span class="sched-name">${it.name}</span><button class="sched-del" onclick="delSched(${i})">✕</button></div>`});el.innerHTML=html}
 function showSchedForm(){const now=new Date();document.getElementById('schedForm').style.display='block';document.getElementById('schedAddBtn').style.display='none';document.getElementById('schedDate').value=now.toISOString().slice(0,10);document.getElementById('schedTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');document.getElementById('schedName').focus()}
 function cancelSched(){document.getElementById('schedForm').style.display='none';document.getElementById('schedAddBtn').style.display='block';document.getElementById('schedName').value=''}
-function confirmSched(){const date=document.getElementById('schedDate').value;const time=document.getElementById('schedTime').value||'종일';const name=document.getElementById('schedName').value.trim();if(!name){document.getElementById('schedName').focus();return}const list=JSON.parse(localStorage.getItem(SCHED_KEY)||'[]');list.push({date,time,name});localStorage.setItem(SCHED_KEY,JSON.stringify(list));cancelSched();renderSched()}
-function delSched(i){const list=JSON.parse(localStorage.getItem(SCHED_KEY)||'[]');list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));list.splice(i,1);localStorage.setItem(SCHED_KEY,JSON.stringify(list));renderSched()}
-function saveMemo(){localStorage.setItem('memo_'+new Date().toDateString(),document.getElementById('memo').value);const s=document.getElementById('memoSaved');s.style.display='block';clearTimeout(saveMemo._t);saveMemo._t=setTimeout(()=>s.style.display='none',1800)}
+function confirmSched(){const date=document.getElementById('schedDate').value;const time=document.getElementById('schedTime').value||'종일';const name=document.getElementById('schedName').value.trim();if(!name){document.getElementById('schedName').focus();return}const list=JSON.parse(localStorage.getItem(SCHED_KEY)||'[]');list.push({date,time,name});localStorage.setItem(SCHED_KEY,JSON.stringify(list));fbPut("schedules",list);cancelSched();renderSched()}
+function delSched(i){const list=JSON.parse(localStorage.getItem(SCHED_KEY)||'[]');list.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));list.splice(i,1);localStorage.setItem(SCHED_KEY,JSON.stringify(list));fbPut("schedules",list);renderSched()}
+function saveMemo(){const _mv=document.getElementById('memo').value;localStorage.setItem('memo_'+new Date().toDateString(),_mv);fbPut('memo',_mv);const s=document.getElementById('memoSaved');s.style.display='block';clearTimeout(saveMemo._t);saveMemo._t=setTimeout(()=>s.style.display='none',1800)}
 document.getElementById('memo').value=localStorage.getItem('memo_'+new Date().toDateString())||'';
-function saveGhNote(){localStorage.setItem('gh_note_'+todayStr(),document.getElementById('ghNote').value)}
+function saveGhNote(){const _gv=document.getElementById('ghNote').value;localStorage.setItem('gh_note_'+todayStr(),_gv);fbPut('ghNote',_gv)}
 
 // ── D-Day ─────────────────────────────────────────────────────
 function showDdayForm(){document.getElementById('ddayForm').style.display='block';document.getElementById('ddayDate').value=todayStr();document.getElementById('ddayLabel').focus()}
 function hideDdayForm(){document.getElementById('ddayForm').style.display='none';document.getElementById('ddayLabel').value=''}
-function addDday(){const label=document.getElementById('ddayLabel').value.trim(),date=document.getElementById('ddayDate').value;if(!label||!date)return;const list=JSON.parse(localStorage.getItem('ddays')||'[]');list.push({label,date});list.sort((a,b)=>a.date.localeCompare(b.date));localStorage.setItem('ddays',JSON.stringify(list));hideDdayForm();renderDdays()}
-function delDday(i){const list=JSON.parse(localStorage.getItem('ddays')||'[]');list.splice(i,1);localStorage.setItem('ddays',JSON.stringify(list));renderDdays()}
+function addDday(){const label=document.getElementById('ddayLabel').value.trim(),date=document.getElementById('ddayDate').value;if(!label||!date)return;const list=JSON.parse(localStorage.getItem('ddays')||'[]');list.push({label,date});list.sort((a,b)=>a.date.localeCompare(b.date));localStorage.setItem('ddays',JSON.stringify(list));fbPut('ddays',list);hideDdayForm();renderDdays()}
+function delDday(i){const list=JSON.parse(localStorage.getItem('ddays')||'[]');list.splice(i,1);localStorage.setItem('ddays',JSON.stringify(list));fbPut('ddays',list);renderDdays()}
 function renderDdays(){const list=JSON.parse(localStorage.getItem('ddays')||'[]');const el=document.getElementById('ddayList');if(!list.length){el.innerHTML='<div class="empty">D-Day를 추가해보세요</div>';return}const today=new Date();today.setHours(0,0,0,0);el.innerHTML=list.map((it,i)=>{const d=new Date(it.date);d.setHours(0,0,0,0);const diff=Math.round((d-today)/(1000*60*60*24));const cls=diff===0?'today':diff<0?'past':diff<=7?'soon':'future';const label=diff===0?'D-DAY':diff<0?`D+${Math.abs(diff)}`:`D-${diff}`;return `<div class="dday-item"><div class="dday-num ${cls}">${label}</div><div><div class="dday-label">${it.label}</div><div class="dday-date">${it.date}</div></div><button class="dday-del" onclick="delDday(${i})">✕</button></div>`}).join('')}
 
 // ── 칸반 ──────────────────────────────────────────────────────
 const KANBAN_KEY='kanban_v1';
 function getKanban(){return JSON.parse(localStorage.getItem(KANBAN_KEY)||'{"todo":[],"prog":[],"done":[]}')}
-function saveKanban(k){localStorage.setItem(KANBAN_KEY,JSON.stringify(k))}
+function saveKanban(k){localStorage.setItem(KANBAN_KEY,JSON.stringify(k));fbPut("kanban",k)}
 const KCls={todo:'todo-c',prog:'prog-c',done:'done-c'},KNext={todo:'prog',prog:'done',done:null};
 function renderKanban(){const k=getKanban();['todo','prog','done'].forEach(col=>{const el=document.getElementById('k-'+col);el.innerHTML=k[col].map((item,i)=>`<div class="k-card ${KCls[col]}"><div class="ktext">${item.text}<div class="kdate">${item.date||''}</div></div><button class="k-card-del" onclick="event.stopPropagation();delKCard('${col}',${i})">✕</button></div>`).join('');el.querySelectorAll('.k-card').forEach((card,i)=>card.addEventListener('click',()=>moveKCard(col,i)));document.getElementById('cnt-'+col).textContent=k[col].length})}
 function showKInput(col){const inp=document.getElementById('ki-'+col);inp.style.display='block';inp.focus()}
@@ -633,13 +667,13 @@ function delKCard(col,i){const k=getKanban();k[col].splice(i,1);saveKanban(k);re
 const IDEA_KEY='ideas_v1';
 function getIdeas(){return JSON.parse(localStorage.getItem(IDEA_KEY)||'[]')}
 function renderIdeas(){const list=getIdeas();const el=document.getElementById('ideaList');if(!list.length){el.innerHTML='<div class="empty" style="padding:12px 0">저장된 아이디어가 없습니다</div>';return}el.innerHTML=list.map((it,i)=>`<div class="idea-item"><div class="idea-text">${it.text}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="idea-time">${it.date}</span><button class="idea-del" onclick="delIdea(${i})">✕</button></div></div>`).join('')}
-function saveIdea(){const text=document.getElementById('ideaInput').value.trim();if(!text)return;const list=getIdeas();list.unshift({text,date:new Date().toLocaleDateString('ko-KR')});localStorage.setItem(IDEA_KEY,JSON.stringify(list));document.getElementById('ideaInput').value='';renderIdeas()}
-function delIdea(i){const list=getIdeas();list.splice(i,1);localStorage.setItem(IDEA_KEY,JSON.stringify(list));renderIdeas()}
+function saveIdea(){const text=document.getElementById('ideaInput').value.trim();if(!text)return;const list=getIdeas();list.unshift({text,date:new Date().toLocaleDateString('ko-KR')});localStorage.setItem(IDEA_KEY,JSON.stringify(list));fbPut('ideas',list);document.getElementById('ideaInput').value='';renderIdeas()}
+function delIdea(i){const list=getIdeas();list.splice(i,1);localStorage.setItem(IDEA_KEY,JSON.stringify(list));fbPut("ideas",list);renderIdeas()}
 
 // ── 파이프라인 ────────────────────────────────────────────────
 const PIPE_KEY='pipeline_v1';
 function getPipe(){return JSON.parse(localStorage.getItem(PIPE_KEY)||'[[],[],[]]')}
-function savePipe(p){localStorage.setItem(PIPE_KEY,JSON.stringify(p))}
+function savePipe(p){localStorage.setItem(PIPE_KEY,JSON.stringify(p));fbPut("pipeline",p)}
 function renderPipe(){const p=getPipe();[0,1,2].forEach(col=>{const el=document.getElementById('pipe-col-'+col);document.getElementById('pipe-cnt-'+col).textContent=p[col].length;if(!p[col].length){el.innerHTML='';return}el.innerHTML=p[col].map((it,i)=>`<div class="pipe-card"><div style="flex:1"><span class="pipe-name">${it.name}</span><span class="pipe-sub">${it.sub||''}</span></div>${col>0?`<button class="pipe-move" onclick="movePipe(${col},${i},-1)">◀</button>`:''}${col<2?`<button class="pipe-move" onclick="movePipe(${col},${i},1)">▶</button>`:''}  <button class="pipe-del" onclick="delPipe(${col},${i})">✕</button></div>`).join('')})}
 function showPipeInput(col){document.getElementById('pipe-input-'+col).style.display='block';document.getElementById('pipe-ipt-name-'+col).focus()}
 function hidePipeInput(col){document.getElementById('pipe-input-'+col).style.display='none';document.getElementById('pipe-ipt-name-'+col).value='';document.getElementById('pipe-ipt-sub-'+col).value=''}
@@ -658,11 +692,15 @@ function switchTab(id,btn){
 }
 
 // ── 초기 로드 ─────────────────────────────────────────────────
-renderSched();renderDdays();renderKanban();renderIdeas();renderPipe();
-document.getElementById('ghNote').value=localStorage.getItem('gh_note_'+todayStr())||'';
-loadPoint();
-updateMemoryBadge();
-loadAppRec();
+(async()=>{
+  await fbInit();
+  renderSched();renderDdays();renderKanban();renderIdeas();renderPipe();
+  document.getElementById('memo').value=localStorage.getItem('memo_'+new Date().toDateString())||'';
+  document.getElementById('ghNote').value=localStorage.getItem('gh_note_'+todayStr())||'';
+  loadPoint();
+  updateMemoryBadge();
+  loadAppRec();
+})();
 </script>
 </body>
 </html>
