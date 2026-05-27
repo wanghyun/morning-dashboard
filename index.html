@@ -187,7 +187,7 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Segoe UI',sans-serif;backgr
 </head>
 <body>
 
-<div class="notice-bar">📱 모바일 버전 · 뉴스/날씨는 네이버 직접 링크 · 앱추천·업무보드·메모는 완전 동작</div>
+<div class="notice-bar">📱 모바일 버전 · 실시간 뉴스 자동 로딩 · 앱추천·업무보드·메모 완전 동작</div>
 
 <div class="header">
   <div class="header-left">
@@ -230,28 +230,20 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Segoe UI',sans-serif;backgr
     </div>
   </div>
   <div class="card">
-    <div class="card-title">📰 뉴스 바로가기 <span style="font-size:.8rem;color:var(--gray-400);font-weight:400">네이버 직접 링크</span></div>
-    <div class="naver-link-grid">
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=풀스택+개발+AI&sort=1" target="_blank">
-        <span class="icon">🤖</span><div><div class="label">IT·개발 뉴스</div><div class="sub">풀스택·AI 기술</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=SaaS+에드테크+교육+플랫폼&sort=1" target="_blank">
-        <span class="icon">📦</span><div><div class="label">SaaS·EdTech</div><div class="sub">교육 플랫폼</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=태권도장+원생관리&sort=1" target="_blank">
-        <span class="icon">🥋</span><div><div class="label">도장 업계</div><div class="sub">태권도·원생관리</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=스타트업+B2B+투자&sort=1" target="_blank">
-        <span class="icon">🚀</span><div><div class="label">스타트업·투자</div><div class="sub">B2B 시장</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=경제+환율+주식&sort=1" target="_blank">
-        <span class="icon">💰</span><div><div class="label">경제·금융</div><div class="sub">환율·주식</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://news.naver.com/section/105" target="_blank">
-        <span class="icon">💻</span><div><div class="label">IT 종합</div><div class="sub">네이버 IT섹션</div></div>
-      </a>
+    <div class="card-title">📰 실시간 뉴스 <span style="font-size:.8rem;color:var(--gray-400);font-weight:400">Google 뉴스</span><button class="btn-sm ml" onclick="loadAllNews()">새로고침</button></div>
+    <div class="cat-tabs">
+      <button class="ctab on" onclick="switchNews(this,'ai')">🤖 IT·개발</button>
+      <button class="ctab" onclick="switchNews(this,'saas')">📦 SaaS·에드테크</button>
+      <button class="ctab" onclick="switchNews(this,'dojang')">🥋 도장 업계</button>
+      <button class="ctab" onclick="switchNews(this,'startup')">🚀 스타트업</button>
+      <button class="ctab" onclick="switchNews(this,'eco')">💰 경제·금융</button>
     </div>
-  </div>
+    <div id="npanel-ai" class="npanel on"><div class="loading"><div class="spin"></div>불러오는 중...</div></div>
+    <div id="npanel-saas" class="npanel"></div>
+    <div id="npanel-dojang" class="npanel"></div>
+    <div id="npanel-startup" class="npanel"></div>
+    <div id="npanel-eco" class="npanel"></div>
+  </div>  </div>
   <div class="g2">
     <div class="card">
       <div class="card-title">📅 일정</div>
@@ -367,22 +359,15 @@ body{font-family:'Pretendard','Apple SD Gothic Neo','Segoe UI',sans-serif;backgr
     </div>
   </div>
   <div class="card">
-    <div class="card-title">🔍 시장·경쟁사 모니터링</div>
-    <div class="naver-link-grid">
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=태권도+원생관리+솔루션&sort=1" target="_blank">
-        <span class="icon">🏢</span><div><div class="label">경쟁사 뉴스</div><div class="sub">원생관리 솔루션</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=태권도+학원+디지털화&sort=1" target="_blank">
-        <span class="icon">📈</span><div><div class="label">시장 동향</div><div class="sub">학원 디지털화</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=학원관리앱+출결관리&sort=1" target="_blank">
-        <span class="icon">📱</span><div><div class="label">학원관리앱</div><div class="sub">출결·회비 관리</div></div>
-      </a>
-      <a class="naver-link-btn" href="https://search.naver.com/search.naver?where=news&query=태권도+교육+콘텐츠&sort=1" target="_blank">
-        <span class="icon">📚</span><div><div class="label">교육 콘텐츠</div><div class="sub">커리큘럼 트렌드</div></div>
-      </a>
+    <div class="card-title">🔍 시장·경쟁사 모니터링 <button class="btn-sm ml" onclick="loadBizNews()">새로고침</button></div>
+    <div class="cat-tabs">
+      <button class="ctab on" onclick="switchBizNews(this,'rival')">🏢 경쟁사</button>
+      <button class="ctab" onclick="switchBizNews(this,'mkt')">📈 원생관리 시장</button>
+      <button class="ctab" onclick="switchBizNews(this,'edu')">📚 교육 콘텐츠</button>
     </div>
-  </div>
+    <div id="bnpanel-rival" class="npanel on"><div class="loading"><div class="spin"></div>검색 중...</div></div>
+    <div id="bnpanel-mkt" class="npanel"></div>
+    <div id="bnpanel-edu" class="npanel"></div>
 </div>
 
 <!-- 기억 모달 -->
@@ -419,7 +404,71 @@ async function fbInit(){
 }
 function fbPut(k,v){
   clearTimeout(_fbQ[k]);
-  _fbQ[k]=setTimeout(async()=>{
+  _fbQ[k]=setTimeout
+// ── 뉴스 (Google RSS + rss2json) ──────────────────────────────
+const RSS2JSON = 'https://api.rss2json.com/v1/api.json';
+function newsQuery(k){
+  return {
+    ai:'풀스택 개발 AI 기술 when:1d',
+    saas:'SaaS 에드테크 교육 플랫폼 when:1d',
+    dojang:'태권도 학원 원생관리 when:7d',
+    startup:'스타트업 B2B 투자 when:1d',
+    eco:'경제 환율 주식 when:1d',
+    rival:'태권도 원생관리 솔루션 학원관리앱 when:7d',
+    mkt:'태권도 학원 디지털화 when:7d',
+    edu:'태권도 교육 콘텐츠 커리큘럼 when:7d'
+  }[k] || k;
+}
+function stripHtml(s){ return s ? s.replace(/<[^>]+>/g,'').replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>') : '' }
+function relTime(p){ if(!p)return ''; const diff=Math.floor((Date.now()-new Date(p))/60000); return diff<1?'방금':diff<60?diff+'분 전':diff<1440?Math.floor(diff/60)+'시간 전':Math.floor(diff/1440)+'일 전' }
+
+async function fetchNewsRSS(query){
+  const rssFeed = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`;
+  const url = `${RSS2JSON}?rss_url=${encodeURIComponent(rssFeed)}&count=8`;
+  const r = await fetch(url);
+  const d = await r.json();
+  return d.items || [];
+}
+function renderNews(panelId, items){
+  const el = document.getElementById(panelId);
+  if(!items||!items.length){ el.innerHTML='<div class="empty">뉴스를 찾을 수 없습니다</div>'; return }
+  el.innerHTML = items.map(it=>`
+    <div class="ni">
+      <div class="ni-title"><a href="${it.link}" target="_blank">${stripHtml(it.title)}</a></div>
+      <div class="ni-meta">${relTime(it.pubDate)}</div>
+    </div>`).join('');
+}
+async function fetchNews(panelId, key){
+  document.getElementById(panelId).innerHTML='<div class="loading"><div class="spin"></div>불러오는 중...</div>';
+  try { renderNews(panelId, await fetchNewsRSS(newsQuery(key))); }
+  catch(e){ document.getElementById(panelId).innerHTML=`<div class="err-msg">오류: ${e.message}</div>`; }
+}
+function switchNews(btn, key){
+  document.querySelectorAll('#tab-briefing .ctab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('[id^="npanel-"]').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  const panel = document.getElementById('npanel-'+key);
+  panel.classList.add('on');
+  if(!panel.dataset.loaded){ panel.dataset.loaded='1'; fetchNews('npanel-'+key, key); }
+}
+function switchBizNews(btn, key){
+  btn.closest('.card').querySelectorAll('.ctab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('[id^="bnpanel-"]').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  const panel = document.getElementById('bnpanel-'+key);
+  panel.classList.add('on');
+  if(!panel.dataset.loaded){ panel.dataset.loaded='1'; fetchNews('bnpanel-'+key, key); }
+}
+async function loadAllNews(){
+  ['ai','saas','dojang','startup','eco'].forEach(k=>{ const p=document.getElementById('npanel-'+k); p.dataset.loaded='1'; p.innerHTML='<div class="loading"><div class="spin"></div>불러오는 중...</div>'; });
+  await Promise.all(['ai','saas','dojang','startup','eco'].map(k=>fetchNews('npanel-'+k, k)));
+}
+async function loadBizNews(){
+  ['rival','mkt','edu'].forEach(k=>{ const p=document.getElementById('bnpanel-'+k); p.dataset.loaded='1'; p.innerHTML='<div class="loading"><div class="spin"></div>검색 중...</div>'; });
+  await Promise.all(['rival','mkt','edu'].map(k=>fetchNews('bnpanel-'+k, k)));
+}
+
+(async()=>{
     try{
       await fetch(`${FB}/${k}.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
       _fbOk=true;setSyncUI('☁️ 저장됨','#16a34a');setTimeout(()=>setSyncUI('☁️'),1500);
@@ -698,6 +747,7 @@ function switchTab(id,btn){
   document.getElementById('memo').value=localStorage.getItem('memo_'+new Date().toDateString())||'';
   document.getElementById('ghNote').value=localStorage.getItem('gh_note_'+todayStr())||'';
   loadPoint();
+  loadAllNews();
   updateMemoryBadge();
   loadAppRec();
 })();
